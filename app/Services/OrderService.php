@@ -6,14 +6,12 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Stock;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class OrderService
 {
-    /**
-     * Créer une nouvelle commande avec gestion des stocks
-     */
+    public function __construct(private NotificationService $notificationService) {}
+
     public function createOrder(array $orderData, int $userId): Order
     {
         return DB::transaction(function () use ($orderData, $userId) {
@@ -112,6 +110,7 @@ class OrderService
     {
         return Stock::where('pharmacy_id', $pharmacyId)
             ->where('product_id', $productId)
+            ->lockForUpdate()
             ->first();
     }
     
@@ -139,7 +138,9 @@ class OrderService
                     throw new \InvalidArgumentException("Statut invalide: {$newStatus}");
             }
             
-            return $order->fresh();
+            $fresh = $order->fresh(['user']);
+            $this->notificationService->notifyOrderStatusChange($fresh);
+            return $fresh;
         });
     }
     
@@ -158,11 +159,16 @@ class OrderService
     /**
      * Récupérer les commandes d'un utilisateur
      */
-    public function getUserOrders(int $userId, int $perPage = 10)
+    public function getUserOrders(int $userId, int $perPage = 10, ?string $status = null)
     {
-        return Order::where('user_id', $userId)
+        $query = Order::where('user_id', $userId)
             ->with(['pharmacy', 'orderItems.product', 'orderItems.product.category'])
-            ->latest()
-            ->paginate($perPage);
+            ->latest();
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        return $query->paginate($perPage);
     }
 }

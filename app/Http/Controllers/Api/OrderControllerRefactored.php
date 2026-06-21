@@ -38,10 +38,19 @@ class OrderControllerRefactored extends Controller
     {
         $orders = $this->orderService->getUserOrders(
             $request->user()->id,
-            $request->get('per_page', 10)
+            $request->get('per_page', 10),
+            $request->get('status')
         );
 
-        return response()->json($orders);
+        return response()->json([
+            'data' => OrderResource::collection($orders->items()),
+            'pagination' => [
+                'current_page' => $orders->currentPage(),
+                'last_page'    => $orders->lastPage(),
+                'per_page'     => $orders->perPage(),
+                'total'        => $orders->total(),
+            ],
+        ]);
     }
 
     /**

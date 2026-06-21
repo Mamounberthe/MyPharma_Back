@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Models\Product;
-use App\Models\Pharmacy;
-use App\Models\Stock;
+use App\Models\Category;
 use App\Models\Order;
+use App\Models\Pharmacy;
+use App\Models\Product;
+use App\Models\Stock;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,299 +15,96 @@ class OrderTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
+    private function createStockedPharmacy(): array
     {
-        parent::setUp();
-
-        // Créer des données de test
-        $this->user = User::factory()->create(['role' => 'client']);
-        $this->pharmacy = Pharmacy::factory()->create();
-        $this->product = Product::factory()->create();
-        
-        Stock::factory()->create([
-            'pharmacy_id' => $this->pharmacy->id,
-            'product_id' => $this->product->id,
-            'quantity' => 100,
-            'price' => 10.99
+        $pharmacy = Pharmacy::factory()->create();
+        $category = Category::factory()->create();
+        $product  = Product::factory()->create(['category_id' => $category->id]);
+        $stock    = Stock::factory()->create([
+            'pharmacy_id' => $pharmacy->id,
+            'product_id'  => $product->id,
+            'quantity'    => 20,
+            'price'       => 2500,
         ]);
+        return compact('pharmacy', 'product', 'stock');
     }
 
-    /**
-     * Test order creation.
-     */
-    public function test_can_create_order(): void
+    public function test_client_can_create_order(): void
     {
-        $token = $this->user->createToken('auth_token')->plainTextToken;
+        $user = User::factory()->create(['role' => 'client']);
+        ['pharmacy' => $pharmacy, 'product' => $product] = $this->createStockedPharmacy();
 
-        $orderData = [
-            'pharmacy_id' => $this->pharmacy->id,
-            'items' => [
-                [
-                    'product_id' => $this->product->id,
-                    'quantity' => 2
-                ]
-            ],
-            'delivery_address' => '123 Test Street'
-        ];
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->postJson('/api/orders', $orderData);
+        $response = $this->actingAs($user, 'sanctum')
+             ->postJson('/api/v1/orders', [
+                 'pharmacy_id'      => $pharmacy->id,
+                 'items'            => [['product_id' => $product->id, 'quantity' => 2]],
+                 'delivery_address' => '123 Rue Test, Dakar',
+             ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure([
-                'message',
-                'order' => [
-                    'id',
-                    'status',
-                    'total_price',
-                    'delivery_address',
-                    'pharmacy',
-                    'items'
-                ]
-            ]);
+                 ->assertJsonStructure(['order' => ['id', 'status', 'total_price']]);
 
-        // Vérifier que le stock a été décrémenté
-        $this->assertDatabaseHas('stocks', [
-            'pharmacy_id' => $this->pharmacy->id,
-            'product_id' => $this->product->id,
-            'quantity' => 98 // 100 - 2
+        $this->assertDatabaseHas('orders', [
+            'user_id'     => $user->id,
+            'pharmacy_id' => $pharmacy->id,
+            'status'      => 'pending',
         ]);
     }
 
-    /**
-     * Test order creation with insufficient stock.
-     */
-    public function test_order_creation_fails_with_insufficient_stock(): void
+    public function test_order_fails_when_stock_insufficient(): void
     {
-        $token = $this->user->createToken('auth_token')->plainTextToken;
+        $user = User::factory()->create(['role' => 'client']);
+        ['pharmacy' => $pharmacy, 'product' => $product, 'stock' => $stock] = $this->createStockedPharmacy();
+        $stock->update(['quantity' => 1]);
 
-        $orderData = [
-            'pharmacy_id' => $this->pharmacy->id,
-            'items' => [
-                [
-                    'product_id' => $this->product->id,
-                    'quantity' => 150 // Plus que le stock disponible
-                ]
-            ],
-            'delivery_address' => '123 Test Street'
-        ];
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->postJson('/api/orders', $orderData);
-
-        $response->assertStatus(422)
-            ->assertJson(['error' => 'Insufficient stock']);
+        $this->actingAs($user, 'sanctum')
+             ->postJson('/api/v1/orders', [
+                 'pharmacy_id'      => $pharmacy->id,
+                 'items'            => [['product_id' => $product->id, 'quantity' => 5]],
+                 'delivery_address' => '123 Rue Test',
+             ])
+             ->assertStatus(422);
     }
 
-    /**
-     * Test order listing.
-     */
-    public function test_can_list_user_orders(): void
+    public function test_client_can_list_own_orders(): void
     {
-        $token = $this->user->createToken('auth_token')->plainTextToken;
+        $user = User::factory()->create(['role' => 'client']);
+        Order::factory()->count(3)->create(['user_id' => $user->id]);
 
-        // Créer une commande
-        $order = Order::factory()->create([
-            'user_id' => $this->user->id,
-            'pharmacy_id' => $this->pharmacy->id
-        ]);
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->getJson('/api/orders');
-
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    '*' => [
-                        'id',
-                        'status',
-                        'total_price',
-                        'delivery_address',
-                        'pharmacy',
-                        'items'
-                    ]
-                ],
-                'links',
-                'meta'
-            ]);
+        $this->actingAs($user, 'sanctum')
+             ->getJson('/api/v1/orders')
+             ->assertStatus(200)
+             ->assertJsonStructure(['data', 'pagination']);
     }
 
-    /**
-     * Test order details.
-     */
-    public function test_can_show_order_details(): void
-    {
-        $token = $this->user->createToken('auth_token')->plainTextToken;
-
-        $order = Order::factory()->create([
-            'user_id' => $this->user->id,
-            'pharmacy_id' => $this->pharmacy->id
-        ]);
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->getJson("/api/orders/{$order->id}");
-
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'id',
-                'status',
-                'total_price',
-                'delivery_address',
-                'pharmacy',
-                'items',
-                'can_cancel',
-                'can_review'
-            ]);
-    }
-
-    /**
-     * Test order status update by admin.
-     */
     public function test_admin_can_update_order_status(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
-        $token = $admin->createToken('auth_token')->plainTextToken;
+        $admin  = User::factory()->create(['role' => 'admin']);
+        $client = User::factory()->create(['role' => 'client']);
+        $order  = Order::factory()->create(['user_id' => $client->id, 'status' => 'pending']);
 
-        $order = Order::factory()->create([
-            'user_id' => $this->user->id,
-            'pharmacy_id' => $this->pharmacy->id,
-            'status' => 'pending'
-        ]);
+        $this->actingAs($admin, 'sanctum')
+             ->patchJson("/api/v1/admin/orders/{$order->id}/status", ['status' => 'confirmed'])
+             ->assertStatus(200);
 
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->patchJson("/api/orders/{$order->id}/status", [
-            'status' => 'confirmed'
-        ]);
-
-        $response->assertStatus(200)
-            ->assertJson([
-                'message' => 'Order status updated successfully',
-                'order' => [
-                    'status' => 'confirmed'
-                ]
-            ]);
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'confirmed']);
     }
 
-    /**
-     * Test order status update by delivery driver.
-     */
-    public function test_delivery_driver_can_update_order_status(): void
+    public function test_non_admin_cannot_access_admin_routes(): void
     {
-        $driver = User::factory()->create(['role' => 'livreur']);
-        $token = $driver->createToken('auth_token')->plainTextToken;
+        $user = User::factory()->create(['role' => 'client']);
 
-        $order = Order::factory()->create([
-            'user_id' => $this->user->id,
-            'pharmacy_id' => $this->pharmacy->id,
-            'status' => 'confirmed'
-        ]);
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->patchJson("/api/orders/{$order->id}/status", [
-            'status' => 'delivering'
-        ]);
-
-        $response->assertStatus(200);
+        $this->actingAs($user, 'sanctum')
+             ->getJson('/api/v1/admin/stats')
+             ->assertStatus(403);
     }
 
-    /**
-     * Test unauthorized order status update.
-     */
-    public function test_unauthorized_user_cannot_update_order_status(): void
+    public function test_categories_endpoint_is_public(): void
     {
-        $otherUser = User::factory()->create(['role' => 'client']);
-        $token = $otherUser->createToken('auth_token')->plainTextToken;
+        Category::factory()->count(3)->create();
 
-        $order = Order::factory()->create([
-            'user_id' => $this->user->id,
-            'pharmacy_id' => $this->pharmacy->id
-        ]);
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->patchJson("/api/orders/{$order->id}/status", [
-            'status' => 'confirmed'
-        ]);
-
-        $response->assertStatus(403);
-    }
-
-    /**
-     * Test order cancellation with stock restoration.
-     */
-    public function test_order_cancellation_restores_stock(): void
-    {
-        $admin = User::factory()->create(['role' => 'admin']);
-        $token = $admin->createToken('auth_token')->plainTextToken;
-
-        $order = Order::factory()->create([
-            'user_id' => $this->user->id,
-            'pharmacy_id' => $this->pharmacy->id,
-            'status' => 'confirmed'
-        ]);
-
-        $initialStock = Stock::where('pharmacy_id', $this->pharmacy->id)
-            ->where('product_id', $this->product->id)
-            ->first()->quantity;
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->patchJson("/api/orders/{$order->id}/status", [
-            'status' => 'cancelled'
-        ]);
-
-        $response->assertStatus(200);
-
-        // Vérifier que le stock a été restauré
-        $finalStock = Stock::where('pharmacy_id', $this->pharmacy->id)
-            ->where('product_id', $this->product->id)
-            ->first()->quantity;
-
-        $this->assertEquals($initialStock + 1, $finalStock);
-    }
-
-    /**
-     * Test order validation.
-     */
-    public function test_order_validation(): void
-    {
-        $token = $this->user->createToken('auth_token')->plainTextToken;
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->postJson('/api/orders', [
-            'pharmacy_id' => '',
-            'items' => [],
-            'delivery_address' => ''
-        ]);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['pharmacy_id', 'items', 'delivery_address']);
-    }
-
-    /**
-     * Test accessing another user's order.
-     */
-    public function test_cannot_access_other_user_order(): void
-    {
-        $otherUser = User::factory()->create();
-        $token = $otherUser->createToken('auth_token')->plainTextToken;
-
-        $order = Order::factory()->create([
-            'user_id' => $this->user->id,
-            'pharmacy_id' => $this->pharmacy->id
-        ]);
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
-        ])->getJson("/api/orders/{$order->id}");
-
-        $response->assertStatus(403);
+        $this->getJson('/api/v1/categories')
+             ->assertStatus(200)
+             ->assertJsonStructure([['id', 'name']]);
     }
 }

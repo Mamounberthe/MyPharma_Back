@@ -37,12 +37,12 @@ class PaymentController extends Controller
             'payment_method' => 'required|in:orange_money,wave,card,cash',
         ]);
 
-        $payment = $this->paymentService.initiatePayment($order, $request->payment_method);
+        $payment = $this->paymentService->initiatePayment($order, $request->payment_method);
 
         // Simulation de succès immédiat pour le développement
         // Sauf pour 'card' où on pourrait simuler un échec ou un lien Stripe
         if (in_array($request->payment_method, ['orange_money', 'wave', 'cash'])) {
-            $this->paymentService.handlePaymentSuccess($payment);
+            $this->paymentService->handlePaymentSuccess($payment);
             
             return response()->json([
                 'message' => 'Paiement effectué avec succès (Simulation).',

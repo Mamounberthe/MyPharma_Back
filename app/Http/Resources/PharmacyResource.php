@@ -18,6 +18,7 @@ class PharmacyResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'address' => $this->address,
+            'image_url' => $this->image_url,
             'location' => [
                 'latitude' => (float) $this->latitude,
                 'longitude' => (float) $this->longitude,

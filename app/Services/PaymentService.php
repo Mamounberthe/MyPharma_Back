@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\Payment;
+use App\Mail\OrderConfirmedMail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class PaymentService
@@ -45,7 +47,14 @@ class PaymentService
         $order->update(['status' => 'confirmed']);
 
         Log::info("Payment successful for order {$order->id}, method: {$payment->payment_method}");
-        
+
+        try {
+            Mail::to($order->user->email)
+                ->send(new OrderConfirmedMail($order->load(['user', 'pharmacy', 'orderItems.product'])));
+        } catch (\Exception $e) {
+            Log::error("Order confirmation email failed for order {$order->id}: " . $e->getMessage());
+        }
+
         return $payment;
     }
 

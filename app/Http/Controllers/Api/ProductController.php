@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\GeoHelper;
+use App\Models\Category;
 use App\Models\Product;
+use App\Models\Stock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,7 +23,9 @@ class ProductController extends Controller
             'per_page'    => 'sometimes|integer|min:1|max:50',
         ]);
 
-        $query = Product::with('category');
+        $query = Product::with('category')
+            ->withMin('stocks', 'price')
+            ->withCount(['stocks as in_stock_count' => fn ($q) => $q->where('quantity', '>', 0)]);
 
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
@@ -159,5 +163,110 @@ class ProductController extends Controller
                 'total'        => $paginatedProducts->total(),
             ],
         ]);
+    }
+
+    /**
+     * Lister les produits d'une pharmacie avec le prix/stock de cette pharmacie
+     */
+    public function pharmacyProducts(int $id): JsonResponse
+    {
+        $products = Product::with([
+                'category',
+                'stocks' => fn ($q) => $q->where('pharmacy_id', $id),
+            ])
+            ->whereHas('stocks', function ($q) use ($id) {
+                $q->where('pharmacy_id', $id)->where('quantity', '>', 0);
+            })
+            ->paginate((int) request('per_page', 15));
+
+        return response()->json($products);
+    }
+
+    /**
+     * Créer un produit (admin uniquement)
+     */
+    public function store(Request $request): JsonResponse
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Non autorisé.'], 403);
+        }
+
+        $validated = $request->validate([
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'category_id' => 'required|integer|exists:categories,id',
+            'image_url'   => 'nullable|url|max:500',
+        ]);
+
+        $product = Product::create($validated);
+
+        return response()->json($product->load('category'), 201);
+    }
+
+    /**
+     * Mettre à jour un produit (admin uniquement)
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Non autorisé.'], 403);
+        }
+
+        $product = Product::findOrFail($id);
+
+        $validated = $request->validate([
+            'name'        => 'sometimes|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'category_id' => 'sometimes|integer|exists:categories,id',
+            'image_url'   => 'nullable|url|max:500',
+        ]);
+
+        $product->update($validated);
+
+        return response()->json($product->fresh('category'));
+    }
+
+    /**
+     * Supprimer un produit (admin uniquement)
+     */
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Non autorisé.'], 403);
+        }
+
+        Product::findOrFail($id)->delete();
+
+        return response()->json(['message' => 'Produit supprimé.']);
+    }
+
+    /**
+     * Statistiques produits (route publique — agrégats non sensibles)
+     */
+    public function stats(): JsonResponse
+    {
+        return response()->json([
+            'total_products'      => Product::count(),
+            'total_categories'    => Category::count(),
+            'products_with_stock' => Product::whereHas('stocks', fn ($q) => $q->where('quantity', '>', 0))->count(),
+            'avg_price'           => round((float) Stock::where('quantity', '>', 0)->avg('price'), 2),
+        ]);
+    }
+
+    /**
+     * Produits les plus disponibles (triés par nombre de pharmacies en stock)
+     */
+    public function popular(Request $request): JsonResponse
+    {
+        $limit = min((int) $request->get('limit', 10), 50);
+
+        $products = Product::with('category')
+            ->withCount(['stocks as in_stock_count' => fn ($q) => $q->where('quantity', '>', 0)])
+            ->whereHas('stocks', fn ($q) => $q->where('quantity', '>', 0))
+            ->orderByDesc('in_stock_count')
+            ->limit($limit)
+            ->get();
+
+        return response()->json($products);
     }
 }

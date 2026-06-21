@@ -16,6 +16,7 @@ class Pharmacy extends Model
         'latitude',
         'longitude',
         'phone',
+        'image_url',
         'rating',
         'delivery_available',
         'google_place_id',

@@ -16,7 +16,8 @@ class Order extends Model
         'total_price',
         'status',
         'delivery_address',
-        'delivered_at'
+        'prescription_url',
+        'delivered_at',
     ];
 
     protected $casts = [

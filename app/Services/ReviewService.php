@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Models\Pharmacy;
 use App\Models\Review;
-use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 class ReviewService
 {
@@ -36,7 +36,8 @@ class ReviewService
      */
     public function getPharmacyReviews(int $pharmacyId, array $filters = []): LengthAwarePaginator
     {
-        $query = Review::with(['user'])
+        /** @var Builder $query */
+        $query = Review::query()->with(['user'])
             ->where('pharmacy_id', $pharmacyId)
             ->orderBy('created_at', 'desc');
 
@@ -56,7 +57,8 @@ class ReviewService
      */
     public function getUserReviews(int $userId, array $filters = []): LengthAwarePaginator
     {
-        $query = Review::with(['pharmacy'])
+        /** @var Builder $query */
+        $query = Review::query()->with(['pharmacy'])
             ->where('user_id', $userId)
             ->orderBy('created_at', 'desc');
 
@@ -93,8 +95,9 @@ class ReviewService
     public function deleteReview(Review $review): bool
     {
         $pharmacyId = $review->pharmacy_id;
-        
-        $deleted = $review->delete();
+        // Use the static destroy method for a clear signature (accepts id or array)
+        $deletedCount = Review::destroy($review->id);
+        $deleted = (bool) $deletedCount;
 
         if ($deleted) {
             // Mettre à jour la note moyenne de la pharmacie
@@ -109,7 +112,9 @@ class ReviewService
      */
     private function validateUniqueReview(int $pharmacyId, int $userId): void
     {
-        $existingReview = Review::where('user_id', $userId)
+        /** @var Review|null $existingReview */
+        $existingReview = Review::query()
+            ->where('user_id', $userId)
             ->where('pharmacy_id', $pharmacyId)
             ->first();
 
@@ -124,8 +129,10 @@ class ReviewService
     private function updatePharmacyRating(int $pharmacyId): void
     {
         $pharmacy = Pharmacy::findOrFail($pharmacyId);
-        
-        $averageRating = Review::where('pharmacy_id', $pharmacyId)
+
+        /** @var float|int $averageRating */
+        $averageRating = Review::query()
+            ->where('pharmacy_id', $pharmacyId)
             ->avg('rating');
 
         $pharmacy->update([
@@ -138,7 +145,8 @@ class ReviewService
      */
     public function getPharmacyReviewStats(int $pharmacyId): array
     {
-        $reviews = Review::where('pharmacy_id', $pharmacyId);
+        /** @var Builder $reviews */
+        $reviews = Review::query()->where('pharmacy_id', $pharmacyId);
 
         return [
             'total_reviews' => $reviews->count(),

@@ -97,7 +97,13 @@ return [
             'prefix'         => '',
             'prefix_indexes' => true,
             'search_path'    => 'public',
+            // Render PostgreSQL requires SSL but uses an internal CA.
+            // 'verify-ca' / 'verify-full' would need the CA bundle.
+            // 'require' alone drops the connection on PHP 8.2 libpq.
+            // Setting sslrootcert=system makes libpq trust the OS CA store,
+            // which is the correct approach for managed Postgres on Render.
             'sslmode'        => env('DB_SSLMODE', 'require'),
+            'sslrootcert'    => env('DB_SSLROOTCERT', 'system'),
         ],
 
         'sqlsrv' => [

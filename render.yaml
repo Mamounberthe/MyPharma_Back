@@ -2,17 +2,10 @@ services:
   # Laravel Backend API
   - type: web
     name: mypharma-api
-    env: php
+    env: docker
     plan: free
-    buildCommand: |
-      composer install --no-dev --optimize-autoloader
-      php artisan key:generate
-      php artisan storage:link
-      php artisan migrate --force
-      php artisan config:cache
-      php artisan route:cache
-    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
-    runtime: php
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: APP_ENV
         value: production

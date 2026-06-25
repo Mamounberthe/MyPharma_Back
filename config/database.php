@@ -102,7 +102,7 @@ return [
             // 'require' alone drops the connection on PHP 8.2 libpq.
             // Setting sslrootcert=system makes libpq trust the OS CA store,
             // which is the correct approach for managed Postgres on Render.
-            'sslmode'        => env('DB_SSLMODE', 'require'),
+            'sslmode'        => env('DB_SSLMODE', 'verify-full'),
             'sslrootcert'    => env('DB_SSLROOTCERT', 'system'),
         ],
 

@@ -1,12 +1,12 @@
 <?php
 
 return [
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'login', 'register', 'logout'],
-    'allowed_methods' => ['*'],
-    'allowed_origins' => ['*'], // On autorise absolument tout pour le dev
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    'allowed_origins' => [], // Non utilisé — CorsMiddleware gère le CORS
     'allowed_origins_patterns' => [],
-    'allowed_headers' => ['*'],
+    'allowed_headers' => ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
     'exposed_headers' => [],
-    'max_age' => 0,
+    'max_age' => 86400,
     'supports_credentials' => true,
 ];

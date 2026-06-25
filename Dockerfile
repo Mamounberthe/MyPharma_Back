@@ -53,5 +53,9 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Expose port
 EXPOSE 80
 
-# Start supervisor
-CMD ["/usr/bin/supervisord"]
+# Copy and set up start script
+COPY docker/start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+
+# Start via start.sh (runs migrations before supervisor)
+CMD ["/usr/local/bin/start.sh"]

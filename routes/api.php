@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\OrderTrackingController;
 use App\Http\Controllers\Api\PharmacyInvitationController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AdminProductController;
+use App\Http\Controllers\Api\AdminPromotionController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -119,6 +121,13 @@ Route::prefix('v1')->group(function () {
             Route::post('/categories',                   [CategoryController::class, 'store']);
             Route::put('/categories/{category}',         [CategoryController::class, 'update']);
             Route::delete('/categories/{category}',      [CategoryController::class, 'destroy']);
+            
+            // Produits Admin
+            Route::apiResource('products', AdminProductController::class);
+            Route::post('products/{product}/images', [AdminProductController::class, 'uploadImage']);
+
+            // Promotions Admin
+            Route::apiResource('promotions', AdminPromotionController::class);
         });
     });
 });

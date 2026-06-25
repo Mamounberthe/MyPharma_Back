@@ -63,4 +63,17 @@ class Pharmacy extends Model
         $this->rating = $this->reviews()->avg('rating') ?? 0;
         $this->save();
     }
+
+    public function getImageUrlAttribute($value)
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        if (filter_var($value, FILTER_VALIDATE_URL)) {
+            return $value;
+        }
+
+        return asset('storage/' . $value);
+    }
 }

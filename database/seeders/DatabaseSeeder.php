@@ -7,9 +7,6 @@ use App\Models\User;
 use App\Models\Pharmacy;
 use App\Models\Product;
 use App\Models\Stock;
-use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\Review;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -20,195 +17,155 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     * All operations use firstOrCreate / updateOrCreate to ensure idempotence.
      */
     public function run(): void
     {
-        // Création des catégories
+        // Création des catégories (idempotent par nom)
         $categories = [
             ['name' => 'Médicaments'],
             ['name' => 'Vitamines'],
             ['name' => 'Produits de soin'],
             ['name' => 'Équipement médical'],
-            ['name' => 'Produits bébé']
+            ['name' => 'Produits bébé'],
         ];
 
         foreach ($categories as $category) {
-            Category::create($category);
+            Category::firstOrCreate(['name' => $category['name']]);
         }
 
-        // Création des utilisateurs
+        // Création des utilisateurs (idempotent par email)
         $users = [
             [
-                'name' => 'Admin User',
-                'email' => 'admin@mypharma.com',
+                'email'    => 'admin@mypharma.com',
+                'name'     => 'Admin User',
                 'password' => Hash::make('password'),
-                'role' => 'admin'
+                'role'     => 'admin',
             ],
             [
-                'name' => 'John Doe',
-                'email' => 'john@example.com',
+                'email'    => 'john@example.com',
+                'name'     => 'John Doe',
                 'password' => Hash::make('password'),
-                'role' => 'client'
+                'role'     => 'client',
             ],
             [
-                'name' => 'Jane Smith',
-                'email' => 'jane@example.com',
+                'email'    => 'jane@example.com',
+                'name'     => 'Jane Smith',
                 'password' => Hash::make('password'),
-                'role' => 'client'
+                'role'     => 'client',
             ],
             [
-                'name' => 'Delivery Driver',
-                'email' => 'driver@mypharma.com',
+                'email'    => 'driver@mypharma.com',
+                'name'     => 'Delivery Driver',
                 'password' => Hash::make('password'),
-                'role' => 'livreur'
-            ]
+                'role'     => 'livreur',
+            ],
         ];
 
         foreach ($users as $user) {
-            User::create($user);
+            $email = $user['email'];
+            $data  = array_diff_key($user, ['email' => null]);
+            User::firstOrCreate(['email' => $email], $data);
         }
 
-        // Création des pharmacies (Bamako, Mali)
-        $pharmacies = [
+        // Création des pharmacies (idempotent par nom + adresse)
+        $pharmaciesData = [
             [
-                'name' => 'Pharmacie Centrale',
-                'address' => 'Avenue Modibo Keïta, Centre-ville, Bamako',
-                'latitude' => 12.6498,
-                'longitude' => -8.0003,
-                'phone' => '+223 20 22 44 55',
-                'rating' => 4.5,
+                'name'               => 'Pharmacie Centrale',
+                'address'            => 'Avenue Modibo Keïta, Centre-ville, Bamako',
+                'latitude'           => 12.6498,
+                'longitude'          => -8.0003,
+                'phone'              => '+223 20 22 44 55',
+                'rating'             => 4.5,
                 'delivery_available' => true,
-                'is_on_call' => true
+                'is_on_call'         => true,
             ],
             [
-                'name' => 'Pharmacie de l\'ACI 2000',
-                'address' => 'ACI 2000, Hamdallaye, Bamako',
-                'latitude' => 12.6300,
-                'longitude' => -8.0200,
-                'phone' => '+223 20 29 31 77',
-                'rating' => 4.2,
-                'delivery_available' => true
+                'name'               => 'Pharmacie de l\'ACI 2000',
+                'address'            => 'ACI 2000, Hamdallaye, Bamako',
+                'latitude'           => 12.6300,
+                'longitude'          => -8.0200,
+                'phone'              => '+223 20 29 31 77',
+                'rating'             => 4.2,
+                'delivery_available' => true,
             ],
             [
-                'name' => 'Pharmacie de Badalabougou',
-                'address' => 'Badalabougou Est, Rive droite, Bamako',
-                'latitude' => 12.6100,
-                'longitude' => -7.9900,
-                'phone' => '+223 20 23 18 42',
-                'rating' => 4.8,
-                'delivery_available' => false
-            ]
+                'name'               => 'Pharmacie de Badalabougou',
+                'address'            => 'Badalabougou Est, Rive droite, Bamako',
+                'latitude'           => 12.6100,
+                'longitude'          => -7.9900,
+                'phone'              => '+223 20 23 18 42',
+                'rating'             => 4.8,
+                'delivery_available' => false,
+            ],
         ];
 
-        foreach ($pharmacies as $pharmacy) {
-            Pharmacy::create($pharmacy);
+        foreach ($pharmaciesData as $pharmacyData) {
+            $key  = ['name' => $pharmacyData['name'], 'address' => $pharmacyData['address']];
+            $data = array_diff_key($pharmacyData, $key);
+            Pharmacy::firstOrCreate($key, $data);
         }
 
-        // Création des produits (base_price en FCFA, sert au calcul des stocks)
-        $products = [
-            ['name' => 'Paracétamol 500mg', 'description' => 'Analgésique et antipyrétique', 'category_id' => 1, 'base_price' => 600],
-            ['name' => 'Ibuprofène 400mg', 'description' => 'Anti-inflammatoire', 'category_id' => 1, 'base_price' => 1200],
-            ['name' => 'Vitamine C 1000mg', 'description' => 'Complément alimentaire', 'category_id' => 2, 'base_price' => 2000],
-            ['name' => 'Crème hydratante', 'description' => 'Pour peau sèche', 'category_id' => 3, 'base_price' => 3500],
-            ['name' => 'Thermomètre digital', 'description' => 'Mesure température corporelle', 'category_id' => 4, 'base_price' => 6500],
-            ['name' => 'Lait bébé 1er âge', 'description' => 'Alimentation nourrisson', 'category_id' => 5, 'base_price' => 5000]
+        // Création des produits (idempotent par nom + category_id)
+        // base_price sert uniquement au calcul des stocks, non stocké dans products
+        $productsData = [
+            ['name' => 'Paracétamol 500mg',  'description' => 'Analgésique et antipyrétique',    'category_name' => 'Médicaments',        'base_price' => 600],
+            ['name' => 'Ibuprofène 400mg',    'description' => 'Anti-inflammatoire',              'category_name' => 'Médicaments',        'base_price' => 1200],
+            ['name' => 'Vitamine C 1000mg',   'description' => 'Complément alimentaire',          'category_name' => 'Vitamines',          'base_price' => 2000],
+            ['name' => 'Crème hydratante',    'description' => 'Pour peau sèche',                 'category_name' => 'Produits de soin',   'base_price' => 3500],
+            ['name' => 'Thermomètre digital', 'description' => 'Mesure température corporelle',   'category_name' => 'Équipement médical', 'base_price' => 6500],
+            ['name' => 'Lait bébé 1er âge',  'description' => 'Alimentation nourrisson',         'category_name' => 'Produits bébé',      'base_price' => 5000],
+        ];
+
+        // Map category names → IDs (avoid hard-coded IDs)
+        $categoryMap = Category::pluck('id', 'name');
+
+        // Prix fixes par produit pour garantir l'idempotence des stocks
+        // (rand() changerait à chaque seed → updateOrCreate remplacerait le prix)
+        $fixedPrices = [
+            'Paracétamol 500mg'  => 600,
+            'Ibuprofène 400mg'   => 1200,
+            'Vitamine C 1000mg'  => 2000,
+            'Crème hydratante'   => 3500,
+            'Thermomètre digital'=> 6500,
+            'Lait bébé 1er âge' => 5000,
         ];
 
         $basePrices = [];
-        foreach ($products as $product) {
-            $basePrice = $product['base_price'];
-            unset($product['base_price']);
-            $created = Product::create($product);
-            $basePrices[$created->id] = $basePrice;
+        foreach ($productsData as $productData) {
+            $categoryId = $categoryMap[$productData['category_name']] ?? null;
+            if ($categoryId === null) {
+                continue;
+            }
+            $key  = ['name' => $productData['name'], 'category_id' => $categoryId];
+            $data = ['description' => $productData['description']];
+            $product = Product::firstOrCreate($key, $data);
+            $basePrices[$product->id] = $productData['base_price'];
         }
 
-        // Création des stocks
+        // Création des stocks (idempotent par pharmacy_id + product_id)
         $pharmacies = Pharmacy::all();
-        $products = Product::all();
+        $products   = Product::all();
 
         foreach ($pharmacies as $pharmacy) {
             foreach ($products as $product) {
-                // Prix en FCFA : base du produit ±15%, arrondi à 25 FCFA
-                $base = $basePrices[$product->id] ?? 1000;
-                $price = (int) (round($base * (1 + rand(-15, 15) / 100) / 25) * 25);
-                Stock::create([
-                    'pharmacy_id' => $pharmacy->id,
-                    'product_id' => $product->id,
-                    'quantity' => rand(10, 100),
-                    'price' => $price
-                ]);
-            }
-        }
+                $price = $fixedPrices[$product->name] ?? ($basePrices[$product->id] ?? 1000);
 
-        // Création de quelques commandes
-        $clientUsers = User::where('role', 'client')->get();
-        
-        foreach ($clientUsers as $user) {
-            for ($i = 0; $i < 3; $i++) {
-                $pharmacy = Pharmacy::inRandomOrder()->first();
-                $selectedProducts = Product::inRandomOrder()->take(rand(1, 3))->get();
-                
-                $totalPrice = 0;
-                $orderItems = [];
-                
-                foreach ($selectedProducts as $product) {
-                    $stock = Stock::where('pharmacy_id', $pharmacy->id)
-                        ->where('product_id', $product->id)
-                        ->first();
-                    
-                    $quantity = rand(1, 3);
-                    // S'assurer qu'il y a assez de stock
-                    $quantity = min($quantity, $stock->quantity);
-                    $totalPrice += $stock->price * $quantity;
-                    
-                    // Décrémenter le stock
-                    $stock->decrement('quantity', $quantity);
-                    
-                    $orderItems[] = [
-                        'product_id' => $product->id,
-                        'quantity' => $quantity,
-                        'price' => $stock->price
-                    ];
-                }
-                
-                $order = Order::create([
-                    'user_id' => $user->id,
-                    'pharmacy_id' => $pharmacy->id,
-                    'total_price' => $totalPrice,
-                    'status' => ['pending', 'confirmed', 'delivering', 'delivered'][rand(0, 3)],
-                    'delivery_address' => 'Adresse de livraison ' . $user->name
-                ]);
-                
-                foreach ($orderItems as $item) {
-                    OrderItem::create([
-                        'order_id' => $order->id,
-                        'product_id' => $item['product_id'],
-                        'quantity' => $item['quantity'],
-                        'price' => $item['price']
-                    ]);
-                }
-            }
-        }
-
-        // Création de quelques avis
-        $deliveredOrders = Order::where('status', 'delivered')->get();
-        
-        foreach ($deliveredOrders as $order) {
-            if (rand(0, 1)) { // 50% de chance d'avoir un avis
-                // firstOrCreate : un client peut avoir plusieurs commandes livrées
-                // dans la même pharmacie → respecte la contrainte unique (user, pharmacy)
-                Review::firstOrCreate(
+                Stock::updateOrCreate(
                     [
-                        'user_id' => $order->user_id,
-                        'pharmacy_id' => $order->pharmacy_id,
+                        'pharmacy_id' => $pharmacy->id,
+                        'product_id'  => $product->id,
                     ],
                     [
-                        'rating' => rand(3, 5),
-                        'comment' => 'Excellent service, livraison rapide!'
+                        'quantity' => 50,   // valeur stable et idempotente
+                        'price'    => $price,
                     ]
                 );
             }
         }
+
+        // Les commandes (Order / OrderItem) sont des données transactionnelles :
+        // elles NE DOIVENT PAS être seedées — un second seed créerait des doublons.
 
         $this->command->info('Database seeded successfully!');
     }

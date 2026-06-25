@@ -11,10 +11,31 @@ class Product extends Model
 
     protected $fillable = [
         'name',
+        'sku',
+        'price',
         'description',
         'image_url',
-        'category_id'
+        'category_id',
+        'requires_prescription'
     ];
+
+    protected $casts = [
+        'price' => 'decimal:2',
+        'requires_prescription' => 'boolean',
+    ];
+
+    public function getImageUrlAttribute($value)
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        if (filter_var($value, FILTER_VALIDATE_URL)) {
+            return $value;
+        }
+
+        return asset('storage/' . $value);
+    }
 
     public function category()
     {

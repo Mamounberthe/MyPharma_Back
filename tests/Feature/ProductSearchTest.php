@@ -43,7 +43,7 @@ class ProductSearchTest extends TestCase
      */
     public function test_product_search_requires_authentication(): void
     {
-        $response = $this->getJson('/api/search?query=paracetamol');
+        $response = $this->getJson('/api/v1/search?query=paracetamol');
 
         $response->assertStatus(401);
     }
@@ -58,7 +58,7 @@ class ProductSearchTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token
-        ])->getJson('/api/search?query=paracetamol');
+        ])->getJson('/api/v1/search?query=paracetamol');
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -86,7 +86,7 @@ class ProductSearchTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token
-        ])->getJson('/api/search?query=paracetamol&latitude=48.8566&longitude=2.3522&radius=5');
+        ])->getJson('/api/v1/search?query=paracetamol&latitude=48.8566&longitude=2.3522&radius=5');
 
         $response->assertStatus(200);
 
@@ -107,7 +107,7 @@ class ProductSearchTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token
-        ])->getJson('/api/search?query=paracetamol&min_price=5&max_price=10');
+        ])->getJson('/api/v1/search?query=paracetamol&min_price=5&max_price=10');
 
         $response->assertStatus(200);
 
@@ -128,7 +128,7 @@ class ProductSearchTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token
-        ])->getJson('/api/search?query=paracetamol&min_rating=4');
+        ])->getJson('/api/v1/search?query=paracetamol&min_rating=4');
 
         $response->assertStatus(200);
     }
@@ -143,7 +143,7 @@ class ProductSearchTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token
-        ])->getJson('/api/search?query=nonexistentproduct');
+        ])->getJson('/api/v1/search?query=nonexistentproduct');
 
         $response->assertStatus(200)
             ->assertJson([
@@ -163,7 +163,7 @@ class ProductSearchTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token
-        ])->getJson('/api/search');
+        ])->getJson('/api/v1/search');
 
         $response->assertStatus(422)
             ->assertJson(['error' => 'Query parameter is required']);
@@ -179,7 +179,7 @@ class ProductSearchTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token
-        ])->getJson('/api/products');
+        ])->getJson('/api/v1/products');
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -209,7 +209,7 @@ class ProductSearchTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token
-        ])->getJson("/api/products/{$product->id}");
+        ])->getJson("/api/v1/products/{$product->id}");
 
         $response->assertStatus(200)
             ->assertJsonStructure([

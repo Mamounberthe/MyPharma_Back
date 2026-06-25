@@ -14,7 +14,13 @@ services:
       - key: APP_KEY
         generateValue: true
       - key: APP_URL
-        value: https://mypharma-api.onrender.com
+        value: https://mypharma-back-1.onrender.com
+      - key: APP_FRONTEND_URL
+        value: https://my-pharma-front.vercel.app
+      - key: SANCTUM_STATEFUL_DOMAINS
+        value: my-pharma-front.vercel.app
+      - key: SESSION_DOMAIN
+        value: .onrender.com
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
@@ -45,6 +51,7 @@ services:
         value: sync
       - key: FILESYSTEM_DISK
         value: public
+      # RUN_SEEDS=true — à définir manuellement via le dashboard Render si nécessaire
 
 databases:
   # PostgreSQL Database

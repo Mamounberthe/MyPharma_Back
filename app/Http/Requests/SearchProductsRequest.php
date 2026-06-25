@@ -28,7 +28,7 @@ class SearchProductsRequest extends FormRequest
             'min_price' => 'sometimes|numeric|min:0',
             'max_price' => 'sometimes|numeric|min:0',
             'delivery_available' => 'sometimes|boolean',
-            'per_page' => 'sometimes|integer|min:1|max:50',
+            'per_page' => 'sometimes|integer|min:1|max:100',
         ];
     }
 
@@ -55,7 +55,7 @@ class SearchProductsRequest extends FormRequest
             'delivery_available.boolean' => 'Delivery availability must be true or false',
             'per_page.integer' => 'Items per page must be a number',
             'per_page.min' => 'Items per page must be at least 1',
-            'per_page.max' => 'Items per page cannot exceed 50',
+            'per_page.max' => 'Items per page cannot exceed 100',
         ];
     }
 

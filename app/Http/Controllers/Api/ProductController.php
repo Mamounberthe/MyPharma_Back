@@ -20,7 +20,7 @@ class ProductController extends Controller
         $request->validate([
             'category_id' => 'sometimes|integer|exists:categories,id',
             'search'      => 'sometimes|string|max:100',
-            'per_page'    => 'sometimes|integer|min:1|max:50',
+            'per_page'    => 'sometimes|integer|min:1|max:100',
         ]);
 
         $query = Product::with('category')
@@ -66,7 +66,7 @@ class ProductController extends Controller
             'min_price'          => 'sometimes|numeric|min:0',
             'max_price'          => 'sometimes|numeric|min:0',
             'delivery_available' => 'sometimes|boolean',
-            'per_page'           => 'sometimes|integer|min:1|max:50',
+            'per_page'           => 'sometimes|integer|min:1|max:100',
         ]);
 
         $query        = $validated['query'];

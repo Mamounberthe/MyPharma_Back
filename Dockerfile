@@ -29,10 +29,11 @@ COPY . /var/www/html
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Copy .env.example to .env if .env doesn't exist
-RUN if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || echo "APP_ENV=production\nAPP_DEBUG=false\nAPP_KEY=\nAPP_URL=http://localhost\nDB_CONNECTION=pgsql\nDB_HOST=127.0.0.1\nDB_PORT=5432\nDB_DATABASE=mypharma\nDB_USERNAME=postgres\nDB_PASSWORD=password\nCACHE_DRIVER=file\nSESSION_DRIVER=file\nQUEUE_CONNECTION=sync" > .env; fi
+# Ne PAS créer de .env — Laravel lira les variables d'environnement injectées par Render
+# Créer un .env minimal vide pour satisfaire les commandes artisan au build
+RUN echo "APP_KEY=" > .env
 
-# Generate application key
+# Generate application key (sera écrasé par APP_KEY de Render au runtime)
 RUN php artisan key:generate
 
 # Create storage link

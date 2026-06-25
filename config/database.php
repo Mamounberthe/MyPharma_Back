@@ -86,8 +86,9 @@ return [
 
         'pgsql' => [
             'driver'         => 'pgsql',
-            // DB_URL intentionally omitted — use individual variables to avoid
-            // URL-encoding issues with special characters in passwords on Render.
+            // On Render, DATABASE_URL (Internal URL) is the single source of truth.
+            // It includes host, port, user, password and sslmode already configured.
+            'url'            => env('DATABASE_URL'),
             'host'           => env('DB_HOST', '127.0.0.1'),
             'port'           => env('DB_PORT', '5432'),
             'database'       => env('DB_DATABASE', 'laravel'),
@@ -97,13 +98,7 @@ return [
             'prefix'         => '',
             'prefix_indexes' => true,
             'search_path'    => 'public',
-            // Render PostgreSQL requires SSL but uses an internal CA.
-            // 'verify-ca' / 'verify-full' would need the CA bundle.
-            // 'require' alone drops the connection on PHP 8.2 libpq.
-            // Setting sslrootcert=system makes libpq trust the OS CA store,
-            // which is the correct approach for managed Postgres on Render.
-            'sslmode'        => env('DB_SSLMODE', 'verify-full'),
-            'sslrootcert'    => env('DB_SSLROOTCERT', 'system'),
+            'sslmode'        => env('DB_SSLMODE', 'prefer'),
         ],
 
         'sqlsrv' => [

@@ -3,7 +3,6 @@ set -e
 
 echo "[start.sh] Writing environment variables to .env..."
 
-# Utiliser printf pour éviter l'interpolation des caractères spéciaux dans APP_KEY et DB_PASSWORD
 {
   printf 'APP_NAME=MyPharma\n'
   printf 'APP_ENV=%s\n'          "${APP_ENV:-production}"
@@ -16,13 +15,7 @@ echo "[start.sh] Writing environment variables to .env..."
   printf 'LOG_LEVEL=%s\n'        "${LOG_LEVEL:-error}"
   printf '\n'
   printf 'DB_CONNECTION=%s\n'    "${DB_CONNECTION:-pgsql}"
-  printf 'DB_HOST=%s\n'          "${DB_HOST}"
-  printf 'DB_PORT=%s\n'          "${DB_PORT:-5432}"
-  printf 'DB_DATABASE=%s\n'      "${DB_DATABASE}"
-  printf 'DB_USERNAME=%s\n'      "${DB_USERNAME}"
-  printf 'DB_PASSWORD=%s\n'      "${DB_PASSWORD}"
-  printf 'DB_SSLMODE=verify-full\n'
-  printf 'DB_SSLROOTCERT=system\n'
+  printf 'DATABASE_URL=%s\n'     "${DATABASE_URL}"
   printf '\n'
   printf 'CACHE_STORE=%s\n'      "${CACHE_STORE:-file}"
   printf 'CACHE_DRIVER=%s\n'     "${CACHE_DRIVER:-file}"

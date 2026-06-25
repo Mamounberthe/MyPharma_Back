@@ -1,0 +1,60 @@
+services:
+  # Laravel Backend API
+  - type: web
+    name: mypharma-api
+    env: php
+    plan: free
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader
+      php artisan key:generate
+      php artisan storage:link
+      php artisan migrate --force
+      php artisan config:cache
+      php artisan route:cache
+    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_URL
+        value: https://mypharma-api.onrender.com
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: mypharma-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: mypharma-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: mypharma-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: mypharma-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: mypharma-db
+          property: password
+      - key: CACHE_DRIVER
+        value: file
+      - key: SESSION_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: FILESYSTEM_DISK
+        value: public
+
+databases:
+  # PostgreSQL Database
+  - name: mypharma-db
+    databaseName: mypharma
+    user: mypharma_user
+    plan: free

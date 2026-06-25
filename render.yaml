@@ -43,6 +43,8 @@ services:
         fromDatabase:
           name: mypharma-db
           property: password
+      - key: CACHE_STORE
+        value: file
       - key: CACHE_DRIVER
         value: file
       - key: SESSION_DRIVER

@@ -21,7 +21,7 @@ echo "[start.sh] Writing environment variables to .env..."
   printf 'DB_DATABASE=%s\n'      "${DB_DATABASE}"
   printf 'DB_USERNAME=%s\n'      "${DB_USERNAME}"
   printf 'DB_PASSWORD=%s\n'      "${DB_PASSWORD}"
-  printf 'DB_SSLMODE=disable\n'
+  printf 'DB_SSLMODE=require\n'
   printf '\n'
   printf 'CACHE_STORE=%s\n'      "${CACHE_STORE:-file}"
   printf 'CACHE_DRIVER=%s\n'     "${CACHE_DRIVER:-file}"

@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Disque des fichiers uploadés (ordonnances, images produits)
+    |--------------------------------------------------------------------------
+    |
+    | En local/dev : "public" (stockage disque). En production, le stockage
+    | disque de Render est ÉPHÉMÈRE (perdu à chaque redéploiement) : définir
+    | UPLOADS_DISK=s3 et renseigner les variables AWS_* pour un stockage durable.
+    |
+    */
+
+    'uploads_disk' => env('UPLOADS_DISK', 'public'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |

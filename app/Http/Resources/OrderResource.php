@@ -22,6 +22,16 @@ class OrderResource extends JsonResource
             'delivered_at' => $this->delivered_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+
+            // Ordonnance
+            'prescription_url' => $this->prescription_url,
+            'prescription_status' => $this->prescription_status,
+            'prescription_rejection_reason' => $this->when(
+                $this->prescription_status === \App\Models\Order::RX_REJECTED,
+                $this->prescription_rejection_reason
+            ),
+            'requires_prescription' => $this->requiresPrescription(),
+            'is_blocked_by_prescription' => $this->isBlockedByPrescription(),
             
             // Relations
             'pharmacy' => [

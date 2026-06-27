@@ -27,7 +27,11 @@ class OrderService
             
             // 3. Création des items et mise à jour des stocks
             $this->createOrderItemsAndUpdateStock($order->id, $validatedItems, $pharmacyId);
-            
+
+            // 4. Si la commande contient un produit sur ordonnance, elle est mise
+            //    en attente de validation par un pharmacien avant tout paiement.
+            $this->applyPrescriptionRequirement($order, $validatedItems);
+
             return $order->load(['pharmacy', 'orderItems.product']);
         });
     }
@@ -104,6 +108,23 @@ class OrderService
     }
     
     /**
+     * Marquer la commande "en attente de validation d'ordonnance" si elle
+     * contient au moins un produit nécessitant une prescription.
+     */
+    private function applyPrescriptionRequirement(Order $order, array $validatedItems): void
+    {
+        $productIds = array_column($validatedItems, 'product_id');
+
+        $requiresPrescription = Product::whereIn('id', $productIds)
+            ->where('requires_prescription', true)
+            ->exists();
+
+        if ($requiresPrescription) {
+            $order->update(['prescription_status' => Order::RX_PENDING]);
+        }
+    }
+
+    /**
      * Récupérer le stock d'un produit dans une pharmacie
      */
     private function getProductStock(int $pharmacyId, int $productId): ?Stock
@@ -115,11 +136,29 @@ class OrderService
     }
     
     /**
+     * Transitions de statut autorisées (machine à états de la commande).
+     * Empêche les transitions illégales (ex. livrée → en attente) et les
+     * répétitions (ex. annuler deux fois → double réincrémentation du stock).
+     */
+    private const STATUS_TRANSITIONS = [
+        'pending'    => ['confirmed', 'cancelled'],
+        'confirmed'  => ['delivering', 'cancelled'],
+        'delivering' => ['delivered'],
+        'delivered'  => [],
+        'cancelled'  => [],
+    ];
+
+    /**
      * Mettre à jour le statut d'une commande
      */
     public function updateOrderStatus(Order $order, string $newStatus): Order
     {
         return DB::transaction(function () use ($order, $newStatus) {
+            // Verrou + relecture pour éviter les transitions concurrentes.
+            $order = Order::lockForUpdate()->findOrFail($order->id);
+
+            $this->assertTransitionAllowed($order->status, $newStatus);
+
             switch ($newStatus) {
                 case 'confirmed':
                     $order->confirm();
@@ -144,6 +183,24 @@ class OrderService
         });
     }
     
+    /**
+     * Vérifier qu'une transition de statut est autorisée.
+     */
+    private function assertTransitionAllowed(string $current, string $target): void
+    {
+        if ($current === $target) {
+            throw new \InvalidArgumentException("La commande est déjà au statut « {$current} ».");
+        }
+
+        $allowed = self::STATUS_TRANSITIONS[$current] ?? [];
+
+        if (! in_array($target, $allowed, true)) {
+            throw new \InvalidArgumentException(
+                "Transition de statut invalide : « {$current} » → « {$target} »."
+            );
+        }
+    }
+
     /**
      * Gérer l'annulation d'une commande (restitution des stocks)
      */

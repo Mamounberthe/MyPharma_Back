@@ -21,6 +21,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Garde de sécurité : ce seeder crée des comptes de démonstration à mot
+        // de passe connu et des données factices. Il ne doit JAMAIS s'exécuter en
+        // production, même si RUN_SEEDS=true. Override explicite via ALLOW_DEMO_SEED.
+        if (app()->environment('production') && ! env('ALLOW_DEMO_SEED', false)) {
+            if (isset($this->command)) {
+                $this->command->warn('DatabaseSeeder ignoré en production (données de démonstration).');
+            }
+            return;
+        }
+
         // Création des catégories (idempotent par nom)
         $categories = [
             ['name' => 'Médicaments'],
@@ -64,8 +74,14 @@ class DatabaseSeeder extends Seeder
 
         foreach ($users as $user) {
             $email = $user['email'];
-            $data  = array_diff_key($user, ['email' => null]);
-            User::firstOrCreate(['email' => $email], $data);
+            // 'role' n'est plus mass-assignable : on le retire des attributs créés en masse
+            // puis on l'assigne explicitement via forceFill.
+            $data  = array_diff_key($user, ['email' => null, 'role' => null]);
+            $model = User::firstOrCreate(['email' => $email], $data);
+
+            if ($model->role !== $user['role']) {
+                $model->forceFill(['role' => $user['role']])->save();
+            }
         }
 
         // Création des pharmacies (idempotent par nom + adresse)

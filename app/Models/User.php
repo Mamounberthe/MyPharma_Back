@@ -10,7 +10,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use App\Mail\PasswordResetNotification;
-use Illuminate\Auth\Notifications\ResetPassword as ResetPasswordNotification;
+use Illuminate\Support\Facades\Mail;
 
 class User extends Authenticatable
 {
@@ -26,7 +26,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
+        // 'role' est volontairement EXCLU du mass-assignment : il ne doit jamais
+        // pouvoir être défini depuis une requête utilisateur (élévation de privilèges).
+        // L'attribution d'un rôle se fait explicitement via forceFill (seeder/back-office).
     ];
 
     /**
@@ -82,6 +84,8 @@ class User extends Authenticatable
      */
     public function sendPasswordResetNotification($token)
     {
-        $this->notify(new PasswordResetNotification($token, $this->email));
+        // PasswordResetNotification est un Mailable : on l'envoie via Mail,
+        // pas via notify() (qui attend une Notification).
+        Mail::to($this->email)->send(new PasswordResetNotification($token, $this->email));
     }
 }

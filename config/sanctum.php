@@ -47,7 +47,10 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Durée de vie d'un token (en minutes). Par défaut 7 jours : limite la
+    // fenêtre d'exploitation d'un token volé tout en évitant des reconnexions
+    // trop fréquentes. Ajustable via SANCTUM_TOKEN_EXPIRATION.
+    'expiration' => (int) env('SANCTUM_TOKEN_EXPIRATION', 60 * 24 * 7),
 
     /*
     |--------------------------------------------------------------------------

@@ -26,7 +26,9 @@ class RegisterRequest extends FormRequest
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'sometimes|in:client,admin,livreur'
+            // Le rôle n'est volontairement PAS accepté à l'inscription publique :
+            // tout compte créé via /register est forcé à "client" (cf. AuthController).
+            // L'attribution admin/livreur se fait uniquement côté back-office.
         ];
     }
 
@@ -43,7 +45,6 @@ class RegisterRequest extends FormRequest
             'password.required' => 'Password is required',
             'password.min' => 'Password must be at least 8 characters',
             'password.confirmed' => 'Password confirmation does not match',
-            'role.in' => 'Role must be one of: client, admin, livreur'
         ];
     }
 }

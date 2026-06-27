@@ -20,8 +20,12 @@ class AuthController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->role ?? 'client'
         ]);
+
+        // Rôle forcé : l'inscription publique ne crée que des clients.
+        // 'role' n'étant pas mass-assignable, on l'assigne explicitement via forceFill.
+        // (Empêche l'élévation de privilèges via un champ "role" dans la requête.)
+        $user->forceFill(['role' => 'client'])->save();
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -121,13 +125,13 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $status = Password::sendResetLink($request->only('email'));
+        // On déclenche l'envoi sans révéler si l'email existe (anti-énumération
+        // de comptes) : la réponse est identique dans tous les cas.
+        Password::sendResetLink($request->only('email'));
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return response()->json(['message' => 'Lien de réinitialisation envoyé par email.']);
-        }
-
-        return response()->json(['message' => 'Impossible de trouver cet utilisateur.'], 422);
+        return response()->json([
+            'message' => 'Si un compte est associé à cette adresse, un lien de réinitialisation vient d’être envoyé.',
+        ]);
     }
 
     public function resetPassword(Request $request)

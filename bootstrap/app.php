@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Retirer HandleCors natif de Laravel pour éviter les doublons d'en-têtes
         $middleware->remove(\Illuminate\Http\Middleware\HandleCors::class);
+
+        // Alias d'autorisation : protège le groupe de routes admin.
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Ajouter les en-têtes CORS même sur les réponses d'erreur (500, 404, etc.)

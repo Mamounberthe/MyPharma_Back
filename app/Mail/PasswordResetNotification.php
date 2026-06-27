@@ -40,8 +40,19 @@ class PasswordResetNotification extends Mailable
      */
     public function content(): Content
     {
+        $frontendUrl = rtrim(env('APP_FRONTEND_URL', config('app.url')), '/');
+
+        $resetUrl = $frontendUrl . '/reset-password?' . http_build_query([
+            'token' => $this->token,
+            'email' => $this->email,
+        ]);
+
         return new Content(
             view: 'emails.password-reset',
+            with: [
+                'resetUrl' => $resetUrl,
+                'email'    => $this->email,
+            ],
         );
     }
 

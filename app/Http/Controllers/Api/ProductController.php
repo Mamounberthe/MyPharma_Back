@@ -35,9 +35,22 @@ class ProductController extends Controller
             $query->where('name', 'LIKE', '%' . $request->search . '%');
         }
 
-        return response()->json(
-            $query->paginate($request->per_page ?? 15)
-        );
+        $products = $query->paginate($request->per_page ?? 15);
+
+        // Format {data, pagination} — cohérent avec PharmacyController et attendu
+        // par le frontend (PaginatedResponse<T>). Le paginateur brut de Laravel
+        // n'expose pas de clé "pagination", ce qui cassait la pagination côté client.
+        return response()->json([
+            'data' => $products->items(),
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'last_page'    => $products->lastPage(),
+                'per_page'     => $products->perPage(),
+                'total'        => $products->total(),
+                'from'         => $products->firstItem(),
+                'to'           => $products->lastItem(),
+            ],
+        ]);
     }
 
     /**
@@ -179,7 +192,17 @@ class ProductController extends Controller
             })
             ->paginate((int) request('per_page', 15));
 
-        return response()->json($products);
+        return response()->json([
+            'data' => $products->items(),
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'last_page'    => $products->lastPage(),
+                'per_page'     => $products->perPage(),
+                'total'        => $products->total(),
+                'from'         => $products->firstItem(),
+                'to'           => $products->lastItem(),
+            ],
+        ]);
     }
 
     /**

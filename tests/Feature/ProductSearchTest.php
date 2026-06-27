@@ -39,13 +39,15 @@ class ProductSearchTest extends TestCase
     }
 
     /**
-     * Test product search without authentication.
+     * La recherche est volontairement PUBLIQUE (boutique B2C : on parcourt le
+     * catalogue avant de s'inscrire). Voir le groupe "Routes publiques" dans
+     * routes/api.php.
      */
-    public function test_product_search_requires_authentication(): void
+    public function test_product_search_is_public(): void
     {
         $response = $this->getJson('/api/v1/search?query=paracetamol');
 
-        $response->assertStatus(401);
+        $response->assertStatus(200);
     }
 
     /**
@@ -165,8 +167,9 @@ class ProductSearchTest extends TestCase
             'Authorization' => 'Bearer ' . $token
         ])->getJson('/api/v1/search');
 
+        // Validation Laravel standard : 422 avec une erreur sur le champ "query".
         $response->assertStatus(422)
-            ->assertJson(['error' => 'Query parameter is required']);
+            ->assertJsonValidationErrors(['query']);
     }
 
     /**
@@ -193,8 +196,12 @@ class ProductSearchTest extends TestCase
                         'updated_at'
                     ]
                 ],
-                'links',
-                'meta'
+                'pagination' => [
+                    'current_page',
+                    'last_page',
+                    'per_page',
+                    'total',
+                ],
             ]);
     }
 

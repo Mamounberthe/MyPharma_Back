@@ -8,12 +8,12 @@ use App\Http\Controllers\Api\OrderControllerRefactored;
 use App\Http\Controllers\Api\OrderTrackingController;
 use App\Http\Controllers\Api\PharmacyInvitationController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminProductController;
 use App\Http\Controllers\Api\AdminPromotionController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Storage;
 
 /*
 |--------------------------------------------------------------------------
@@ -83,15 +83,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/orders/{order}/tracking/location', [OrderTrackingController::class, 'getLocation']);
         Route::post('/orders/{order}/tracking',         [OrderTrackingController::class, 'updateLocation']);
         Route::post('/orders/{order}/pay', [PaymentController::class, 'pay']);
-        Route::post('/orders/{order}/prescription', function (\Illuminate\Http\Request $request, \App\Models\Order $order) {
-            if ($request->user()->id !== $order->user_id) {
-                abort(403);
-            }
-            $request->validate(['file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120']);
-            $path = $request->file('file')->store("prescriptions/{$order->id}", 'public');
-            $order->update(['prescription_url' => Storage::disk('public')->url($path)]);
-            return response()->json(['prescription_url' => $order->prescription_url]);
-        });
+        Route::post('/orders/{order}/prescription', [PrescriptionController::class, 'upload']);
 
         // Invitations
         Route::get('/invitations', [PharmacyInvitationController::class, 'index']);
@@ -102,11 +94,15 @@ Route::prefix('v1')->group(function () {
         Route::put('/reviews/{id}',    [ReviewController::class, 'update']);
         Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
 
-        // Administration (admin uniquement — vérification dans le contrôleur)
-        Route::prefix('admin')->group(function () {
+        // Administration — protégée par le middleware "admin" (gate unique).
+        Route::prefix('admin')->middleware('admin')->group(function () {
             Route::get('/stats',                         [AdminController::class, 'stats']);
             Route::get('/orders',                        [AdminController::class, 'orders']);
             Route::patch('/orders/{order}/status',       [AdminController::class, 'updateOrderStatus']);
+            // Validation des ordonnances par le pharmacien
+            Route::get('/prescriptions/pending',            [PrescriptionController::class, 'pending']);
+            Route::post('/prescriptions/{order}/approve',   [PrescriptionController::class, 'approve']);
+            Route::post('/prescriptions/{order}/reject',    [PrescriptionController::class, 'reject']);
             // Pharmacies
             Route::get('/pharmacies',                    [AdminController::class, 'pharmacies']);
             Route::post('/pharmacies',                   [AdminController::class, 'createPharmacy']);

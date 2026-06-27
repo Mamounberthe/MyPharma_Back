@@ -106,13 +106,15 @@ class AdminProductController extends Controller
             'image' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
+        $disk = config('filesystems.uploads_disk');
+
         // Supprimer l'ancienne image si elle existe et n'est pas une URL externe
         if ($product->image_url && !filter_var($product->image_url, FILTER_VALIDATE_URL)) {
-            Storage::disk('public')->delete($product->image_url);
+            Storage::disk($disk)->delete($product->image_url);
         }
 
-        $path = $request->file('image')->store('products', 'public');
-        $absoluteUrl = Storage::disk('public')->url($path);
+        $path = $request->file('image')->store('products', $disk);
+        $absoluteUrl = Storage::disk($disk)->url($path);
 
         $product->update([
             'image_url' => $absoluteUrl

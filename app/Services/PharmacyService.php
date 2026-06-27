@@ -45,16 +45,17 @@ class PharmacyService
             $lng = $filters['longitude'];
             $radius = $filters['radius'] ?? 10;
 
-            // Pour SQLite, on utilise une formule simplifiée
-            try {
-                $query->selectRaw(
-                    "*, (6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) AS distance",
-                    [$lat, $lng, $lat]
-                )->having('distance', '<=', $radius)->orderBy('distance');
-            } catch (\Exception $e) {
-                // En cas d'erreur avec la formule de distance, on ignore le filtre de distance
-                $query->orderBy('rating', 'desc');
-            }
+            // Formule de Haversine (distance en km).
+            // On filtre via whereRaw (et non having sur un alias) : having sans
+            // group by est rejeté par PostgreSQL ET SQLite. whereRaw fonctionne
+            // de manière identique sur Postgres (prod), MySQL et SQLite (tests).
+            $haversine = '(6371 * acos(cos(radians(?)) * cos(radians(latitude)) '
+                . '* cos(radians(longitude) - radians(?)) '
+                . '+ sin(radians(?)) * sin(radians(latitude))))';
+
+            $query->selectRaw("*, {$haversine} AS distance", [$lat, $lng, $lat])
+                ->whereRaw("{$haversine} <= ?", [$lat, $lng, $lat, $radius])
+                ->orderBy('distance');
         }
 
         // Filtre par note minimale

@@ -23,8 +23,8 @@ class OrderResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
 
-            // Ordonnance
-            'prescription_url' => $this->prescription_url,
+            // Ordonnance — URL signée temporaire (objet privé sur S3).
+            'prescription_url' => $this->prescriptionDownloadUrl(),
             'prescription_status' => $this->prescription_status,
             'prescription_rejection_reason' => $this->when(
                 $this->prescription_status === \App\Models\Order::RX_REJECTED,

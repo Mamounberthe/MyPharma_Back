@@ -29,9 +29,11 @@ class PrescriptionController extends Controller
         ]);
 
         $disk = config('filesystems.uploads_disk');
+        // On stocke le CHEMIN (et non une URL publique) : l'ordonnance est une
+        // donnée de santé, servie ensuite via une URL signée temporaire.
         $path = $request->file('file')->store("prescriptions/{$order->id}", $disk);
 
-        $attributes = ['prescription_url' => Storage::disk($disk)->url($path)];
+        $attributes = ['prescription_url' => $path];
 
         // Un nouvel envoi relance le cycle de validation (utile après un refus).
         if ($order->requiresPrescription()) {
@@ -45,7 +47,7 @@ class PrescriptionController extends Controller
 
         return response()->json([
             'message'             => 'Ordonnance téléversée avec succès.',
-            'prescription_url'    => $order->prescription_url,
+            'prescription_url'    => $order->prescriptionDownloadUrl(),
             'prescription_status' => $order->prescription_status,
         ]);
     }
@@ -63,8 +65,16 @@ class PrescriptionController extends Controller
             ->latest()
             ->paginate((int) $request->query('per_page', 15));
 
+        // On substitue le chemin brut stocké par une URL signée temporaire,
+        // utilisable comme lien cliquable par le pharmacien.
+        $data = collect($orders->items())->map(function (Order $order) {
+            return array_merge($order->toArray(), [
+                'prescription_url' => $order->prescriptionDownloadUrl(),
+            ]);
+        });
+
         return response()->json([
-            'data' => $orders->items(),
+            'data' => $data,
             'pagination' => [
                 'current_page' => $orders->currentPage(),
                 'last_page'    => $orders->lastPage(),

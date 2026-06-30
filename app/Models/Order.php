@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Order extends Model
 {
@@ -71,6 +72,41 @@ class Order extends Model
     public function requiresPrescription(): bool
     {
         return $this->prescription_status !== self::RX_NOT_REQUIRED;
+    }
+
+    /**
+     * URL d'accès à l'ordonnance téléversée.
+     *
+     * L'ordonnance est une donnée de santé : sur un stockage S3 l'objet n'est
+     * PAS public. On renvoie alors une URL signée à durée de vie courte (15
+     * min), générée uniquement pour un utilisateur déjà autorisé par le
+     * contrôleur (le client propriétaire ou le pharmacien). Sur un disque
+     * local/public (dev), on retourne l'URL classique. Les anciennes valeurs
+     * stockées sous forme d'URL absolue sont renvoyées telles quelles
+     * (rétrocompatibilité).
+     */
+    public function prescriptionDownloadUrl(): ?string
+    {
+        $value = $this->prescription_url;
+
+        if (! $value) {
+            return null;
+        }
+
+        // Données historiques : déjà une URL absolue.
+        if (filter_var($value, FILTER_VALIDATE_URL)) {
+            return $value;
+        }
+
+        $disk = config('filesystems.uploads_disk');
+
+        // Sur S3, l'objet est privé : on génère une URL signée temporaire.
+        if (config("filesystems.disks.{$disk}.driver") === 's3') {
+            return Storage::disk($disk)->temporaryUrl($value, now()->addMinutes(15));
+        }
+
+        // Disque local/public (dev) : URL publique classique.
+        return Storage::disk($disk)->url($value);
     }
 
     /**

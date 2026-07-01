@@ -32,7 +32,7 @@ class ProductController extends Controller
         }
 
         if ($request->filled('search')) {
-            $query->where('name', 'LIKE', '%' . $request->search . '%');
+            $query->search($request->search);
         }
 
         $products = $query->paginate($request->per_page ?? 15);
@@ -92,8 +92,9 @@ class ProductController extends Controller
         $deliveryOnly = $validated['delivery_available'] ?? null;
         $perPage      = $validated['per_page'] ?? 15;
 
-        // ✅ Requête optimisée avec filtres en base
-        $productsQuery = Product::where('name', 'LIKE', "%{$query}%")
+        // ✅ Requête optimisée avec filtres en base (recherche insensible
+        // à la casse et aux accents — voir Product::scopeSearch).
+        $productsQuery = Product::search($query)
             ->with(['category', 'stocks.pharmacy'])
             ->whereHas('stocks', function ($stockQuery) use ($minPrice, $maxPrice) {
                 $stockQuery->where('quantity', '>', 0);

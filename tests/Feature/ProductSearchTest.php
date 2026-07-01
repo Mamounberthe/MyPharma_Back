@@ -229,4 +229,46 @@ class ProductSearchTest extends TestCase
                 'updated_at'
             ]);
     }
+
+    /**
+     * La recherche doit ignorer la casse (majuscule/minuscule). Portable
+     * SQLite/PostgreSQL.
+     */
+    public function test_search_is_case_insensitive(): void
+    {
+        Product::factory()->create([
+            'name'        => 'Doliprane',
+            'category_id' => Category::first()->id,
+        ]);
+
+        foreach (['doliprane', 'DOLIPRANE', 'DoLiPrAnE', 'doli'] as $term) {
+            $names = collect(
+                $this->getJson('/api/v1/products?search=' . $term)
+                    ->assertStatus(200)
+                    ->json('data')
+            )->pluck('name');
+
+            $this->assertContains(
+                'Doliprane',
+                $names,
+                "La recherche « {$term} » devrait trouver Doliprane."
+            );
+        }
+    }
+
+    /**
+     * Rechercher avec l'accent trouve le produit accentué. L'insensibilité
+     * TOTALE aux accents (« paracetamol » → « Paracétamol ») repose sur
+     * l'extension PostgreSQL unaccent, active en production.
+     */
+    public function test_search_matches_accented_name(): void
+    {
+        $names = collect(
+            $this->getJson('/api/v1/products?search=' . urlencode('paracétamol'))
+                ->assertStatus(200)
+                ->json('data')
+        )->pluck('name');
+
+        $this->assertContains('Paracétamol 500mg', $names);
+    }
 }

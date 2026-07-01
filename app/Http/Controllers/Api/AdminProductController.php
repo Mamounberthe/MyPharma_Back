@@ -44,7 +44,8 @@ class AdminProductController extends Controller
         $validated = $request->validate([
             'name'                  => 'required|string|max:255',
             'sku'                   => 'nullable|string|max:100|unique:products,sku',
-            'price'                 => 'required|numeric|min:0',
+            // Le prix réel est géré par pharmacie (table stocks). Optionnel ici.
+            'price'                 => 'nullable|numeric|min:0',
             'description'           => 'nullable|string|max:2000',
             'category_id'           => 'required|exists:categories,id',
             'requires_prescription' => 'boolean',
@@ -67,7 +68,8 @@ class AdminProductController extends Controller
         $validated = $request->validate([
             'name'                  => 'sometimes|required|string|max:255',
             'sku'                   => 'nullable|string|max:100|unique:products,sku,' . $product->id,
-            'price'                 => 'sometimes|required|numeric|min:0',
+            // Le prix réel est géré par pharmacie (table stocks). Optionnel ici.
+            'price'                 => 'sometimes|nullable|numeric|min:0',
             'description'           => 'nullable|string|max:2000',
             'category_id'           => 'sometimes|required|exists:categories,id',
             'requires_prescription' => 'sometimes|boolean',

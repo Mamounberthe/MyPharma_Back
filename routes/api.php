@@ -42,9 +42,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/categories', [CategoryController::class, 'index']);
 
         // Pharmacies (publiques)
-        Route::get('/pharmacies',              [PharmacyControllerRefactored::class, 'index']);
-        Route::get('/pharmacies/{id}',         [PharmacyControllerRefactored::class, 'show']);
-        Route::get('/pharmacies/{id}/reviews', [PharmacyControllerRefactored::class, 'reviews']);
+        Route::get('/pharmacies',              [PharmacyController::class, 'index']);
+        Route::get('/pharmacies/{id}',         [PharmacyController::class, 'show']);
+        Route::get('/pharmacies/{id}/reviews', [PharmacyController::class, 'reviews']);
 
         // Produits (publiques en lecture seule)
         Route::get('/products',                   [ProductController::class, 'index']);
@@ -73,13 +73,13 @@ Route::prefix('v1')->group(function () {
         Route::delete('/products/{id}',            [ProductController::class, 'destroy']);
 
         // Commandes
-        Route::get('/orders',                  [OrderControllerRefactored::class, 'index']);
-        Route::post('/orders',                 [OrderControllerRefactored::class, 'store']);
-        Route::get('/orders/{id}',             [OrderControllerRefactored::class, 'show']);
-        Route::patch('/orders/{id}/status',    [OrderControllerRefactored::class, 'updateStatus']);
-        
+        Route::get('/orders',                  [OrderController::class, 'index']);
+        Route::post('/orders',                 [OrderController::class, 'store']);
+        Route::get('/orders/{id}',             [OrderController::class, 'show']);
+        Route::patch('/orders/{id}/status',    [OrderController::class, 'updateStatus']);
+
         // Tracking Livraison
-        Route::get('/orders/{order}/tracking',          [OrderControllerRefactored::class, 'tracking']);
+        Route::get('/orders/{order}/tracking',          [OrderController::class, 'tracking']);
         Route::get('/orders/{order}/tracking/location', [OrderTrackingController::class, 'getLocation']);
         Route::post('/orders/{order}/tracking',         [OrderTrackingController::class, 'updateLocation']);
         Route::post('/orders/{order}/pay', [PaymentController::class, 'pay']);
@@ -124,6 +124,26 @@ Route::prefix('v1')->group(function () {
 
             // Promotions Admin
             Route::apiResource('promotions', AdminPromotionController::class);
+
+            // Utilisateurs Admin
+            Route::get('/users', [AdminController::class, 'users']);
+            Route::post('/users', [AdminController::class, 'createUser']);
+            Route::put('/users/{user}', [AdminController::class, 'updateUser']);
+            Route::delete('/users/{user}', [AdminController::class, 'deleteUser']);
+
+            // Rapports
+            Route::get('/reports', [AdminController::class, 'reports']);
+
+            // Notifications Admin
+            Route::get('/notifications', [AdminController::class, 'notifications']);
+            Route::post('/notifications', [AdminController::class, 'createNotification']);
+
+            // Paramètres
+            Route::get('/settings', [AdminController::class, 'settings']);
+            Route::patch('/settings', [AdminController::class, 'updateSettings']);
+
+            // Journal d'activité
+            Route::get('/activity-log', [AdminController::class, 'activityLog']);
         });
     });
 });

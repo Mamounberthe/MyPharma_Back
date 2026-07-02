@@ -12,7 +12,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class OrderControllerRefactored extends Controller
+class OrderController extends Controller
 {
     use AuthorizesRequests;
 

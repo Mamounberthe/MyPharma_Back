@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,40 +17,25 @@ class CategoryController extends Controller
         return response()->json($categories);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreCategoryRequest $request): JsonResponse
     {
-        $this->ensureAdmin($request);
-
-        $data = $request->validate(['name' => 'required|string|max:100|unique:categories,name']);
-        $category = Category::create($data);
+        $category = Category::create($request->validated());
 
         return response()->json($category, 201);
     }
 
-    public function update(Category $category, Request $request): JsonResponse
+    public function update(UpdateCategoryRequest $request, Category $category): JsonResponse
     {
-        $this->ensureAdmin($request);
-
-        $data = $request->validate([
-            'name' => 'required|string|max:100|unique:categories,name,' . $category->id,
-        ]);
-        $category->update($data);
+        $category->update($request->validated());
 
         return response()->json($category);
     }
 
-    public function destroy(Category $category, Request $request): JsonResponse
+    public function destroy(Category $category): JsonResponse
     {
-        $this->ensureAdmin($request);
+        $this->authorize('delete', $category);
         $category->delete();
 
         return response()->json(['message' => 'Catégorie supprimée.']);
-    }
-
-    private function ensureAdmin(Request $request): void
-    {
-        if (! $request->user()?->isAdmin()) {
-            abort(403, 'Accès réservé aux administrateurs.');
-        }
     }
 }

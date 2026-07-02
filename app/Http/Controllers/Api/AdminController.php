@@ -3,6 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CreatePharmacyRequest;
+use App\Http\Requests\CreateStockRequest;
+use App\Http\Requests\CreateUserRequest;
+use App\Http\Requests\GetStocksRequest;
+use App\Http\Requests\UpdatePharmacyRequest;
+use App\Http\Requests\UpdateStockRequest;
+use App\Http\Requests\UpdateUserAdminRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Pharmacy;
@@ -10,23 +17,20 @@ use App\Models\Product;
 use App\Models\Stock;
 use App\Models\User;
 use App\Services\OrderService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
-    public function __construct(private OrderService $orderService) {}
+    use AuthorizesRequests;
 
-    private function ensureAdmin(Request $request): void
-    {
-        if (! $request->user()->isAdmin()) {
-            abort(403, 'Accès réservé aux administrateurs.');
-        }
-    }
+    public function __construct(private OrderService $orderService) {}
 
     public function stats(Request $request): JsonResponse
     {
-        $this->ensureAdmin($request);
+        $this->authorize('viewAny', Stock::class);
 
         return response()->json([
             'orders' => [
@@ -54,7 +58,7 @@ class AdminController extends Controller
 
     public function orders(Request $request): JsonResponse
     {
-        $this->ensureAdmin($request);
+        $this->authorize('viewAny', Order::class);
 
         $query = Order::with(['user:id,name,email', 'pharmacy:id,name,phone', 'orderItems'])
             ->latest();
@@ -107,48 +111,21 @@ class AdminController extends Controller
         return response()->json($pharmacies);
     }
 
-    public function createPharmacy(Request $request): JsonResponse
+    public function createPharmacy(CreatePharmacyRequest $request): JsonResponse
     {
-        $this->ensureAdmin($request);
-
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'address' => 'required|string',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'is_on_call' => 'boolean',
-            'delivery_available' => 'boolean',
-        ]);
-
-        $pharmacy = Pharmacy::create($data);
+        $pharmacy = Pharmacy::create($request->validated());
         return response()->json(['message' => 'Pharmacie créée.', 'pharmacy' => $pharmacy], 201);
     }
 
-    public function updatePharmacy(Pharmacy $pharmacy, Request $request): JsonResponse
+    public function updatePharmacy(UpdatePharmacyRequest $request, Pharmacy $pharmacy): JsonResponse
     {
-        $this->ensureAdmin($request);
-
-        $data = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'address' => 'sometimes|string',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'is_on_call' => 'sometimes|boolean',
-            'delivery_available' => 'sometimes|boolean',
-        ]);
-
-        $pharmacy->update($data);
+        $pharmacy->update($request->validated());
         return response()->json(['message' => 'Pharmacie mise à jour.', 'pharmacy' => $pharmacy]);
     }
 
-    public function deletePharmacy(Pharmacy $pharmacy, Request $request): JsonResponse
+    public function deletePharmacy(Pharmacy $pharmacy): JsonResponse
     {
-        $this->ensureAdmin($request);
-
+        $this->authorize('delete', $pharmacy);
         $pharmacy->delete();
         return response()->json(['message' => 'Pharmacie supprimée.']);
     }
@@ -157,12 +134,8 @@ class AdminController extends Controller
     // Stocks
     // ---------------------------------------------------------------
 
-    public function stocks(Request $request): JsonResponse
+    public function stocks(GetStocksRequest $request): JsonResponse
     {
-        $this->ensureAdmin($request);
-
-        $request->validate(['pharmacy_id' => 'required|integer|exists:pharmacies,id']);
-
         $stocks = Stock::where('pharmacy_id', $request->pharmacy_id)
             ->with('product:id,name,image_url')
             ->orderBy('id')
@@ -171,42 +144,231 @@ class AdminController extends Controller
         return response()->json($stocks);
     }
 
-    public function updateStock(Stock $stock, Request $request): JsonResponse
+    public function updateStock(UpdateStockRequest $request, Stock $stock): JsonResponse
     {
-        $this->ensureAdmin($request);
-
-        $data = $request->validate([
-            'quantity' => 'required|integer|min:0',
-            'price'    => 'required|numeric|min:0',
-        ]);
-
-        $stock->update($data);
+        $stock->update($request->validated());
         return response()->json(['message' => 'Stock mis à jour.', 'stock' => $stock->load('product:id,name')]);
     }
 
-    public function createStock(Request $request): JsonResponse
+    public function createStock(CreateStockRequest $request): JsonResponse
     {
-        $this->ensureAdmin($request);
-
-        $data = $request->validate([
-            'pharmacy_id' => 'required|integer|exists:pharmacies,id',
-            'product_id'  => 'required|integer|exists:products,id',
-            'quantity'    => 'required|integer|min:0',
-            'price'       => 'required|numeric|min:0',
-        ]);
-
-        if (Stock::where('pharmacy_id', $data['pharmacy_id'])->where('product_id', $data['product_id'])->exists()) {
+        if (Stock::where('pharmacy_id', $request->pharmacy_id)->where('product_id', $request->product_id)->exists()) {
             return response()->json(['message' => 'Ce produit existe déjà dans cette pharmacie.'], 422);
         }
 
-        $stock = Stock::create($data);
+        $stock = Stock::create($request->validated());
         return response()->json(['message' => 'Stock créé.', 'stock' => $stock->load('product:id,name')], 201);
     }
 
-    public function deleteStock(Stock $stock, Request $request): JsonResponse
+    public function deleteStock(Stock $stock): JsonResponse
     {
-        $this->ensureAdmin($request);
+        $this->authorize('delete', $stock);
         $stock->delete();
         return response()->json(['message' => 'Stock supprimé.']);
+    }
+
+    // ---------------------------------------------------------------
+    // Utilisateurs
+    // ---------------------------------------------------------------
+
+    public function users(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', User::class);
+
+        $query = User::query();
+
+        if ($role = $request->get('role')) {
+            $query->where('role', $role);
+        }
+
+        $users = $query->latest()->paginate($request->get('per_page', 15));
+
+        return response()->json([
+            'data' => $users->items(),
+            'pagination' => [
+                'current_page' => $users->currentPage(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
+            ],
+        ]);
+    }
+
+    public function createUser(CreateUserRequest $request): JsonResponse
+    {
+        $user = new User([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+        $user->forceFill(['role' => $request->role]);
+        $user->save();
+
+        return response()->json(['message' => 'Utilisateur créé.', 'user' => $user->fresh()], 201);
+    }
+
+    public function updateUser(UpdateUserAdminRequest $request, User $user): JsonResponse
+    {
+        $data = $request->validated();
+        if (isset($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        }
+        $user->update($data);
+        if (isset($data['role'])) {
+            $user->forceFill(['role' => $data['role']])->save();
+        }
+
+        return response()->json(['message' => 'Utilisateur mis à jour.', 'user' => $user->fresh()]);
+    }
+
+    public function deleteUser(Request $request, User $user): JsonResponse
+    {
+        if ($user->id === $request->user()->id) {
+            return response()->json(['message' => 'Vous ne pouvez pas supprimer votre propre compte.'], 422);
+        }
+
+        $user->delete();
+        return response()->json(['message' => 'Utilisateur supprimé.']);
+    }
+
+    // ---------------------------------------------------------------
+    // Rapports
+    // ---------------------------------------------------------------
+
+    public function reports(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Stock::class);
+
+        $startDate = $request->get('start_date', now()->subMonth()->toDateString());
+        $endDate = $request->get('end_date', now()->toDateString());
+
+        return response()->json([
+            'orders' => [
+                'total' => Order::whereBetween('created_at', [$startDate, $endDate])->count(),
+                'delivered' => Order::whereBetween('created_at', [$startDate, $endDate])->where('status', 'delivered')->count(),
+                'cancelled' => Order::whereBetween('created_at', [$startDate, $endDate])->where('status', 'cancelled')->count(),
+                'revenue' => Order::whereBetween('created_at', [$startDate, $endDate])->where('status', 'delivered')->sum('total_price'),
+            ],
+            'top_pharmacies' => Pharmacy::withCount('orders')
+                ->whereHas('orders', function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('created_at', [$startDate, $endDate]);
+                })
+                ->orderByDesc('orders_count')
+                ->limit(10)
+                ->get(['id', 'name', 'orders_count']),
+            'top_products' => Product::withCount('orderItems')
+                ->whereHas('orderItems', function ($q) use ($startDate, $endDate) {
+                    $q->whereHas('order', function ($orderQ) use ($startDate, $endDate) {
+                        $orderQ->whereBetween('created_at', [$startDate, $endDate]);
+                    });
+                })
+                ->orderByDesc('order_items_count')
+                ->limit(10)
+                ->get(['id', 'name', 'order_items_count']),
+        ]);
+    }
+
+    // ---------------------------------------------------------------
+    // Notifications
+    // ---------------------------------------------------------------
+
+    public function notifications(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', \App\Models\Notification::class);
+
+        $notifications = \App\Models\Notification::with('user:id,name,email')
+            ->latest()
+            ->paginate($request->get('per_page', 15));
+
+        return response()->json([
+            'data' => $notifications->items(),
+            'pagination' => [
+                'current_page' => $notifications->currentPage(),
+                'last_page' => $notifications->lastPage(),
+                'per_page' => $notifications->perPage(),
+                'total' => $notifications->total(),
+            ],
+        ]);
+    }
+
+    public function createNotification(Request $request): JsonResponse
+    {
+        $this->authorize('create', \App\Models\Notification::class);
+
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'type' => 'required|string',
+            'data' => 'required|array',
+        ]);
+
+        $notification = \App\Models\Notification::create([
+            'user_id' => $request->user_id,
+            'type' => $request->type,
+            'data' => $request->data,
+        ]);
+
+        return response()->json(['message' => 'Notification créée.', 'notification' => $notification], 201);
+    }
+
+    // ---------------------------------------------------------------
+    // Paramètres
+    // ---------------------------------------------------------------
+
+    public function settings(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Stock::class);
+
+        return response()->json([
+            'app' => [
+                'name' => config('app.name'),
+                'url' => config('app.url'),
+                'timezone' => config('app.timezone'),
+            ],
+            'delivery' => [
+                'enabled' => config('services.delivery.enabled', true),
+                'base_fee' => config('services.delivery.base_fee', 5.00),
+            ],
+        ]);
+    }
+
+    public function updateSettings(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Stock::class);
+
+        $request->validate([
+            'delivery_enabled' => 'sometimes|boolean',
+            'delivery_base_fee' => 'sometimes|numeric|min:0',
+        ]);
+
+        if ($request->has('delivery_enabled')) {
+            config(['services.delivery.enabled' => $request->delivery_enabled]);
+        }
+        if ($request->has('delivery_base_fee')) {
+            config(['services.delivery.base_fee' => $request->delivery_base_fee]);
+        }
+
+        return response()->json(['message' => 'Paramètres mis à jour.']);
+    }
+
+    // ---------------------------------------------------------------
+    // Journal d'activité
+    // ---------------------------------------------------------------
+
+    public function activityLog(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Stock::class);
+
+        $startDate = $request->get('start_date', now()->subDays(7)->toDateString());
+        $endDate = $request->get('end_date', now()->toDateString());
+
+        return response()->json([
+            'orders' => Order::with(['user:id,name', 'pharmacy:id,name'])
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->latest()
+                ->limit(50)
+                ->get(['id', 'user_id', 'pharmacy_id', 'status', 'total_price', 'created_at']),
+            'users_created' => User::whereBetween('created_at', [$startDate, $endDate])->count(),
+            'pharmacies_created' => Pharmacy::whereBetween('created_at', [$startDate, $endDate])->count(),
+        ]);
     }
 }

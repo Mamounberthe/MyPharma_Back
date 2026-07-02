@@ -11,7 +11,7 @@ use App\Models\Pharmacy;
 use App\Services\PharmacyService;
 use Illuminate\Http\JsonResponse;
 
-class PharmacyControllerRefactored extends Controller
+class PharmacyController extends Controller
 {
     private PharmacyService $pharmacyService;
 

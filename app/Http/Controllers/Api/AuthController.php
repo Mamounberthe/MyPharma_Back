@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ForgotPasswordRequest;
+use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\ResetPasswordRequest;
+use App\Http\Requests\UpdatePasswordRequest;
+use App\Http\Requests\UpdatePushTokenRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Str;
 
@@ -36,17 +41,8 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
@@ -67,12 +63,8 @@ class AuthController extends Controller
         return response()->json($request->user());
     }
 
-    public function updatePushToken(Request $request)
+    public function updatePushToken(UpdatePushTokenRequest $request)
     {
-        $request->validate([
-            'push_token' => 'required|string',
-        ]);
-
         $request->user()->update([
             'expo_push_token' => $request->push_token
         ]);
@@ -80,25 +72,15 @@ class AuthController extends Controller
         return response()->json(['message' => 'Push token updated successfully']);
     }
 
-    public function update(Request $request)
+    public function update(UpdateUserRequest $request)
     {
-        $request->validate([
-            'name'  => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:users,email,' . $request->user()->id,
-        ]);
-
         $request->user()->update($request->only(['name', 'email']));
 
         return response()->json(['user' => $request->user()->fresh(), 'message' => 'Profil mis à jour.']);
     }
 
-    public function updatePassword(Request $request)
+    public function updatePassword(UpdatePasswordRequest $request)
     {
-        $request->validate([
-            'current_password' => 'required|string',
-            'password'         => 'required|string|min:8|confirmed',
-        ]);
-
         if (! Hash::check($request->current_password, $request->user()->password)) {
             return response()->json(['message' => 'Mot de passe actuel incorrect.'], 422);
         }
@@ -115,16 +97,8 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out successfully']);
     }
 
-    public function forgotPassword(Request $request)
+    public function forgotPassword(ForgotPasswordRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
         // On déclenche l'envoi sans révéler si l'email existe (anti-énumération
         // de comptes) : la réponse est identique dans tous les cas.
         Password::sendResetLink($request->only('email'));
@@ -134,18 +108,8 @@ class AuthController extends Controller
         ]);
     }
 
-    public function resetPassword(Request $request)
+    public function resetPassword(ResetPasswordRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'token' => 'required|string',
-            'email' => 'required|email',
-            'password' => 'required|string|min:8|confirmed'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user, $password) {

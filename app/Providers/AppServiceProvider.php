@@ -3,7 +3,10 @@
 namespace App\Providers;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoTransportFactory;
+use Symfony\Component\Mailer\Transport\Dsn;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,6 +24,24 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerSqliteMathFunctions();
+        $this->registerBrevoMailTransport();
+    }
+
+    /**
+     * Transport mail "brevo" : envoi via l'API HTTP de Brevo (port 443).
+     *
+     * Render (free tier) bloque les ports SMTP sortants (25/465/587) depuis
+     * septembre 2025 — le SMTP classique y reste suspendu jusqu'au timeout.
+     * L'API HTTP n'est pas concernée. Activer avec MAIL_MAILER=brevo et
+     * BREVO_API_KEY (clé "xkeysib-…" : Brevo → SMTP & API → API Keys).
+     */
+    private function registerBrevoMailTransport(): void
+    {
+        Mail::extend('brevo', function () {
+            return (new BrevoTransportFactory)->create(
+                new Dsn('brevo+api', 'default', config('services.brevo.key'))
+            );
+        });
     }
 
     /**

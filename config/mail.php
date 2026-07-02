@@ -45,8 +45,17 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // Timeout court : sans lui, un port SMTP bloqué (ex. Render free
+            // tier) suspend la requête HTTP entière jusqu'au 504 du gateway.
+            'timeout' => (int) env('MAIL_TIMEOUT', 10),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
+        // Envoi via l'API HTTP Brevo (port 443) — fonctionne sur Render free
+        // tier, contrairement au SMTP (ports sortants bloqués). Nécessite
+        // BREVO_API_KEY. Voir AppServiceProvider::registerBrevoMailTransport().
+        'brevo' => [
+            'transport' => 'brevo',
         ],
 
         'ses' => [

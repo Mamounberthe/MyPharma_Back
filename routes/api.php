@@ -2,9 +2,9 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\PharmacyControllerRefactored;
+use App\Http\Controllers\Api\PharmacyController;
 use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\OrderControllerRefactored;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderTrackingController;
 use App\Http\Controllers\Api\PharmacyInvitationController;
 use App\Http\Controllers\Api\PaymentController;
@@ -75,8 +75,8 @@ Route::prefix('v1')->group(function () {
         // Commandes
         Route::get('/orders',                  [OrderController::class, 'index']);
         Route::post('/orders',                 [OrderController::class, 'store']);
-        Route::get('/orders/{id}',             [OrderController::class, 'show']);
-        Route::patch('/orders/{id}/status',    [OrderController::class, 'updateStatus']);
+        Route::get('/orders/{order}',          [OrderController::class, 'show']);
+        Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
 
         // Tracking Livraison
         Route::get('/orders/{order}/tracking',          [OrderController::class, 'tracking']);

@@ -82,8 +82,6 @@ class AdminController extends Controller
 
     public function updateOrderStatus(Order $order, Request $request): JsonResponse
     {
-        $this->ensureAdmin($request);
-
         $request->validate([
             'status' => 'required|in:pending,confirmed,delivering,delivered,cancelled',
         ]);
@@ -105,8 +103,6 @@ class AdminController extends Controller
 
     public function pharmacies(Request $request): JsonResponse
     {
-        $this->ensureAdmin($request);
-
         $pharmacies = Pharmacy::orderBy('name')->get(['id', 'name', 'address', 'phone', 'email', 'is_on_call', 'delivery_available']);
         return response()->json($pharmacies);
     }
